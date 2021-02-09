@@ -1,0 +1,162 @@
+---
+title: "XGBoost_NYC_Part 3"
+author: "Jerome Dixon"
+date: "1/29/2021"
+output: html_document
+---
+
+```{r setup2, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readr)
+library(tidyverse)
+library(purrr)
+library(dplyr)
+library(magrittr)
+library(formattable)
+library(knitr)
+library(lubridate)
+library(xts) 
+library(forecast) 
+library(ggplot2) 
+library(TTR)
+library(data.table)
+library(padr)
+library(xgboost)
+library(Matrix)
+library(RcppRoll)
+library(zoo)
+library(xtable)
+
+
+```
+
+```{r Read in Data with Default Columns as Factor}
+
+nyc_pedestrians <- read_csv("nyc-pedestrians.csv", col_types = cols(.default = col_factor()))
+
+nyc_pedestrians %<>% select(!c("X1","ST_CASE"))
+
+
+names(nyc_pedestrians)[2] <- "DAY"
+names(nyc_pedestrians)[3] <- "MONTH"
+names(nyc_pedestrians)[5] <- "HOUR"
+names(nyc_pedestrians)[6] <- "MINUTE"
+names(nyc_pedestrians)[7] <- "FUNC_SYS"
+names(nyc_pedestrians)[14] <- "PER_NO"
+
+xgb_columns <- colnames(nyc_pedestrians)
+
+nyc_pedestrians[is.na(nyc_pedestrians)] <- "0"
+
+xgb_columns
+
+
+```
+`
+
+
+```{r Convert Key Variables to Numeric}
+
+
+nyc_pedestrians$AGE <- as.numeric(nyc_pedestrians$AGE)
+
+nyc_pedestrians$PER_NO <- as.numeric(nyc_pedestrians$PER_NO)
+
+nyc_pedestrians$LATITUDE <- as.numeric(nyc_pedestrians$LATITUDE)
+
+nyc_pedestrians$LONGITUD <- as.numeric(nyc_pedestrians$LONGITUD)
+
+nyc_pedestrians$Date <- as.Date(nyc_pedestrians$Date)
+
+
+nyc_pedestrians
+
+
+```
+
+
+
+```{r Test Matrix}
+
+
+train_xgb <- nyc_pedestrians[order(nyc_pedestrians$Date),]
+
+label_xgb <- train_xgb$PER_NO
+
+previous_na_action <- options('na.action')
+options(na.action='na.pass')
+
+train_Matrix <- sparse.model.matrix(~ MAK_MOD + BODY_TYP + MOD_YEAR + AGE + DRINKING + RACE + LOCATION + DRIMPAIR
+                                   , data = train_xgb
+                                   , contrasts.arg = NULL
+                                   , sparse=TRUE, sci=FALSE)
+
+options(na.action = previous_na_action)
+
+
+XGB_Matrix <- xgb.DMatrix(data=train_Matrix, label = label_xgb)
+
+```
+
+
+```{r}
+
+xgb_params  <- list(booster = "gbtree"
+               , objective = "reg:squarederror"
+               , eta=0.4
+               , gamma=0
+               )
+
+
+```
+
+```{r}
+
+trains.xgb  <- xgb.cv(data = XGB_Matrix
+                  , param = xgb_params
+                  , maximize = FALSE, evaluation = "rmse", nrounds = 11000
+                  , nthreads = 10, nfold =2, early_stopping_rounds = 500)
+
+
+
+```
+
+```{r}
+
+trains_iterations = trains.xgb$best_iteration
+
+trains.model.xgb <- xgb.train(data = XGB_Matrix
+                   , param = xgb_params
+                   , maximize = FALSE, evaluation = "rmse", nrounds = trains_iterations)
+
+trains.model.xgb
+
+
+```
+
+
+```{r}
+
+feature.importance.nyc <- xgb.importance(feature_names = colnames(XGB_Matrix), model = trains.model.xgb)
+
+xgb.ggplot.importance(importance_matrix = feature.importance.nyc, top_n = 20) +
+  labs(title = "Top Features For New York City Pedestrian Traffic Accidents") +
+  theme_minimal()
+
+ggsave('nyc-feature-importance.png')
+
+
+```
+
+
+```{r}
+
+ggsave('nyc-feature-importance.png')
+
+
+
+
+```
+
+

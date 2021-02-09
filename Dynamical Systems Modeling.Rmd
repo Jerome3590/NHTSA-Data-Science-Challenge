@@ -1,0 +1,100 @@
+---
+title: "Dynamical Systems Modeling"
+author: "Jerome Dixon"
+date: "1/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readr)
+library(dplyr)
+library(rEDM)
+
+```
+
+
+
+
+```{r Embedding Dimension Locomotives}
+
+
+locomotives <- read_csv("locomotives.csv")
+
+locomotives_ts <- locomotives %>% select(5,3,4)
+
+locomotives_ts$Date <- as.integer(locomotives_ts$Date)
+
+names(locomotives_ts)[2] <- "Percent_Available"
+names(locomotives_ts)[3] <- "Average_Age_in_Years"
+
+locomotives_ts$`Percent_Available` <- na_if(locomotives_ts$`Percent_Available`, "U")
+
+locomotives_ts$`Percent_Available` <- as.numeric(locomotives_ts$`Percent_Available`)
+
+# Remove NAs
+locomotives <- locomotives_ts[complete.cases(locomotives_ts), ]
+
+# Scale variables
+locomotives$Percent_Available <- scale(locomotives$Percent_Available)
+locomotives$Average_Age_in_Years <- scale(locomotives$Average_Age_in_Years)
+
+
+rho_E_loco <- EmbedDimension(dataFrame = locomotives, columns = "Percent_Available", target = "Percent_Available", lib = "1 27", pred = "1 27", showPlot = TRUE)
+
+rho_E_loco
+
+
+```
+
+
+
+
+```{r Embedding Dimension Passenger Trains}
+
+
+passenger_trains <- read_csv("passenger-trains.csv")
+
+passenger_trains_ts <- passenger_trains %>% select(5,3,4)
+
+passenger_trains_ts$Date <- as.integer(passenger_trains_ts$Date)
+
+names(passenger_trains_ts)[2] <- "Percent_Available"
+names(passenger_trains_ts)[3] <- "Average_Age_in_Years"
+
+passenger_trains_ts$`Percent_Available` <- na_if(passenger_trains_ts$`Percent_Available`, "U")
+
+passenger_trains_ts$`Percent_Available` <- as.numeric(passenger_trains_ts$`Percent_Available`)
+
+# Remove NAs
+passenger_trains <- passenger_trains_ts[complete.cases(passenger_trains_ts), ]
+
+# Scale variables
+passenger_trains$Percent_Available <- scale(passenger_trains$Percent_Available)
+passenger_trains$Average_Age_in_Years <- scale(passenger_trains$Average_Age_in_Years)
+
+
+rho_E_pass <- EmbedDimension(dataFrame = passenger_trains, columns = "Percent_Available", target = "Percent_Available", lib = "1 27", pred = "1 27", showPlot = TRUE)
+
+rho_E_pass
+
+```
+
+```{r}
+
+
+
+rho_E_pass <- EmbedDimension(dataFrame = passenger_trains, columns = "Percent_Available", target = "Percent_Available", lib = "1 27", pred = "1 27", showPlot = TRUE)
+
+rho_E_pass
+
+
+
+```
+
+
+```{r}
+```
+
+

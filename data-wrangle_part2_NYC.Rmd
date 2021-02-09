@@ -1,0 +1,692 @@
+---
+title: "Data Science Challenge Part 2 - NYC"
+author: "Jerome Dixon"
+date: "1/28/2021"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(lubridate)
+library(dplyr)
+library(unpivotr)
+library(here)
+library(data.table)
+library(forecastML)
+
+
+```
+
+
+A senior policy official asks you to analyze why New York City and Detroit have different pedestrian crash outcomes over the last 5 years. Take Fatality Analysis Reporting System data from nhtsa.gov and compare and contrast Detroit with the New York City metropolitan area. What are the things you might analyze to understand what is different about fatal crash patterns in these cities? Explore the dataset and develop a hypothesis about why the two areas are different.
+
+Hypothesis: Detroit pedestrian crash drivers will be younger drivers, potentially distracted with cell phone use. New York City will have less distracted drivers due to a higher operational tempo environment and how expensive it is to actually own and park a car in New York City. New York City pedestrian crash data will be driven more by volume of traffic and the number of pedestrians.
+
+These are the key variables I believe capture or can lead to insights on this problem.
+
+Vehicle VIN: 
+Equipment Safety Features 
+Vehicle HP
+Vehicle Torque
+Vehicle age
+Vehicle Class and Model
+
+Crash Site (GPS) and Date:
+Walkability Score
+Bike Lanes/Sidewalks
+Pedestrian volume 
+Traffic Volume
+Weather patterns
+Road conditions 
+Traffic patterns
+Intersection or Road Layout
+Mandated Speed
+Proximity to Local Bars/Alcohol
+
+People:
+Age of Driver
+Age of Pedestrian
+Alcohol/Drugs
+Distracted 
+Cell phone use 
+Driver Origin
+Driver Destination
+Driver Speed
+Driver Skill/Experience:
+  Number of days between crash and date of 15th birthday
+  Number of days between crash and date of 16th birthday 
+  Number of days between crash and current birthday
+  
+
+Course of Action.
+
+1. Research Fatality Analysis Reporting System (FARS) dataset for variables that best align to the key variables that I believe represent this problem.
+
+2. Once key variables from the FARS dataset has been collected, format the data into two dataframes for XGBoost. One dataframe for New York City, and one dataframe for Detroit.
+
+3. From these two dataframes use XGBoost Feature Importance capability to see which variables drive pedestrian crash counts in each respective city.
+
+4. Finally, compare the two XGBoost Feature Importance visualizations for insights on difference between the two cities pedestrian crash data.
+
+(https://www.gsa.gov/reference/geographic-locator-codes-glcs-overview)
+GSA GLC:
+State Name	State Code	City Code	City Name	    County Code	 County Name	         	 Duty Station Code
+MICHIGAN	  26	        1260    	DETROIT	      163	         WAYNE	                 261260163
+
+NEW YORK	  36	        4170	    NEW YORK CITY	085,005,047	 RICHMOND, BRONX, KINGS	 364170085
+
+Country Code
+840
+
+
+
+```{r Load New York Base Data 2015, warning=FALSE, message=FALSE}
+
+# This file contains all pedestrian crash cases
+pbtype_nyc_2015 <- fread("FARS/2015/PBType.csv", sep = ",", header= TRUE) %>%
+  filter(str_detect(ST_CASE, "^36")) 
+
+# Here we get number of New York Pedestrian cases
+new_york_pedestrian_cases_2015 <- pbtype_nyc_2015[,2]
+
+
+```
+
+
+NHTSA.gov Tables of Interest: Accidents, Person, Vehicle, Distract
+
+
+```{r Load New York Data 2015, warning=FALSE, message=FALSE}
+
+# Here we get number of accidents from Pedestrian cases and then filter by New York City city code
+accidents_new_york_2015 <- fread("FARS/2015/ACCIDENT.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% new_york_pedestrian_cases_2015$ST_CASE)
+
+# Filter out New York City cases
+accidents_nyc_2015 <- accidents_new_york_2015 %>%  filter(CITY == '4170')
+
+#City of New York Pedestrian Cases
+nyc_pedestrian_cases_2015 <- as.data.frame(accidents_nyc_2015$ST_CASE)
+names(nyc_pedestrian_cases_2015) <- "ST_CASE"
+
+# Add Date Column
+accidents_nyc_2015$Date <- paste0(accidents_nyc_2015$YEAR,"-",accidents_nyc_2015$MONTH,"-", accidents_nyc_2015$DAY)
+accidents_nyc_2015$Date <- as.Date(accidents_nyc_2015$Date)
+
+accidents_nyc_2015 %<>% select(53,1:52)
+
+# Fill in gaps in Time Series
+accidents_nyc_2015 %<>% fill_gaps(., date_col = 1, frequency = '1 day', groups = NULL, static_features = NULL)
+
+
+```
+
+
+```{r Add Data to 2015 Dataframe, warning=FALSE, message=FALSE}
+
+
+person_nyc_2015 <- fread("FARS/2015/person.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2015$ST_CASE) 
+
+accidents_nyc_2015 <- left_join(accidents_nyc_2015, person_nyc_2015, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+  
+  
+
+distractions_nyc_2015 <- fread("FARS/2015/Distract.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2015$ST_CASE)
+
+accidents_nyc_2015 <- left_join(accidents_nyc_2015, distractions_nyc_2015, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+driver_impair_nyc_2015 <- fread("FARS/2015/DrImpair.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2015$ST_CASE)
+
+accidents_nyc_2015 <- left_join(accidents_nyc_2015, driver_impair_nyc_2015, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmcrash_nyc_2015 <- fread("FARS/2015/nmcrash.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2015$ST_CASE)
+
+accidents_nyc_2015 <- left_join(accidents_nyc_2015, nmcrash_nyc_2015, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmimpair_nyc_2015 <- fread("FARS/2015/NMImpair.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2015$ST_CASE)
+
+accidents_nyc_2015 <- left_join(accidents_nyc_2015, nmimpair_nyc_2015, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmprior_nyc_2015 <- fread("FARS/2015/NMPrior.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2015$ST_CASE)
+
+accidents_nyc_2015 <- left_join(accidents_nyc_2015, nmprior_nyc_2015, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+accidents_nyc_2015[is.na(accidents_nyc_2015)] <- 0
+
+
+```
+
+
+
+```{r View Column Names to Prune Unnecessary Variables}
+
+names_cleanup <- names(accidents_nyc_2015)
+
+names_cleanup
+
+```
+
+
+
+# Again we select the variables that align best for our initial hypothesis.
+
+```{r Final 2015 Dataframe}
+
+accidents_nyc_2015 %<>% select("Date", "ST_CASE","DAY_original","MONTH_original",   "DAY_WEEK","HOUR_original","MINUTE_original","FUNC_SYS_original","ROUTE","TWAY_ID","TWAY_ID2",  "LATITUDE","LONGITUD","TYP_INT","PER_NO_original","MAKE","MAK_MOD","BODY_TYP","MOD_YEAR","AGE","SEX","DRINKING","DRUGS","DRUG_DET","RACE","LOCATION","DRIMPAIR") 
+
+accidents_nyc_2015 %<>% unique()
+
+#write.csv(accidents_nyc_2015, "nyc-2015.csv")
+
+
+```
+
+
+
+```{r Load New York Data 2016, warning=FALSE, message=FALSE}
+
+# This file contains all pedestrian crash cases
+pbtype_nyc_2016 <- fread("FARS/2016/PBType.csv", sep = ",", header= TRUE) %>%
+  filter(str_detect(ST_CASE, "^36")) 
+
+# Here we get number of New York Pedestrian cases
+new_york_pedestrian_cases_2016 <- as.data.frame(pbtype_nyc_2016$ST_CASE)
+names(new_york_pedestrian_cases_2016) <- "ST_CASE"
+
+
+# Here we get number of accidents from Pedestrian cases and then filter by New York City city code
+accidents_nyc_2016 <- fread("FARS/2016/ACCIDENT.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% new_york_pedestrian_cases_2016$ST_CASE)
+
+# Filter out nyc City cases
+accidents_nyc_2016 %<>%  filter(CITY == '4170')
+
+#City of nyc Pedestrian Cases
+nyc_pedestrian_cases_2016 <- as.data.frame(accidents_nyc_2016$ST_CASE)
+names(nyc_pedestrian_cases_2016) <- "ST_CASE"
+
+
+# Add Date Column
+accidents_nyc_2016$Date <- paste0(accidents_nyc_2016$YEAR,"-",accidents_nyc_2016$MONTH,"-", accidents_nyc_2016$DAY)
+
+# Format Date column for fill_gap function
+accidents_nyc_2016$Date <- as.Date(accidents_nyc_2016$Date)
+accidents_nyc_2016 %<>% select(92,3,1,2,4:91)
+
+
+# Fill in gaps in Time Series
+accidents_nyc_2016 %<>% fill_gaps(., date_col = 1, frequency = '1 day', groups = NULL, static_features = NULL)
+
+
+```
+
+
+
+```{r Add Data to 2016 Dataframe}
+
+
+person_nyc_2016 <- fread("FARS/2016/person.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2016$ST_CASE) 
+
+accidents_nyc_2016 <- left_join(accidents_nyc_2016, person_nyc_2016, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+  
+  
+
+distractions_nyc_2016 <- fread("FARS/2016/Distract.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2016$ST_CASE)
+
+accidents_nyc_2016 <- left_join(accidents_nyc_2016, distractions_nyc_2016, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+driver_impair_nyc_2016 <- fread("FARS/2016/DrImpair.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2016$ST_CASE)
+
+accidents_nyc_2016 <- left_join(accidents_nyc_2016, driver_impair_nyc_2016, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmcrash_nyc_2016 <- fread("FARS/2016/nmcrash.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2016$ST_CASE)
+
+accidents_nyc_2016 <- left_join(accidents_nyc_2016, nmcrash_nyc_2016, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmimpair_nyc_2016 <- fread("FARS/2016/NMImpair.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2016$ST_CASE)
+
+accidents_nyc_2016 <- left_join(accidents_nyc_2016, nmimpair_nyc_2016, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmprior_nyc_2016 <- fread("FARS/2016/NMPrior.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2016$ST_CASE)
+
+accidents_nyc_2016 <- left_join(accidents_nyc_2016, nmprior_nyc_2016, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+accidents_nyc_2016[is.na(accidents_nyc_2016)] <- 0
+
+
+```
+
+
+```{r View 2016 Column Names for Pruning}
+
+
+names_cleanup <- names(accidents_nyc_2016)
+
+names_cleanup
+
+
+```
+
+
+```{r Final 2016 Dataframe}
+
+accidents_nyc_2016 %<>% select("Date", "ST_CASE","DAY_original","MONTH_original",   "DAY_WEEK","HOUR_original","MINUTE_original","FUNC_SYS_original","ROUTE","TWAY_ID","TWAY_ID2",  "LATITUDE","LONGITUD","TYP_INT","PER_NO_original","MAKE","MAK_MOD","BODY_TYP","MOD_YEAR","AGE","SEX","DRINKING","DRUGS","DRUG_DET","RACE","LOCATION","DRIMPAIR") 
+
+accidents_nyc_2016 %<>% unique()
+#write.csv(accidents_nyc_2016, "nyc-2016.csv")
+
+
+```
+
+
+
+```{r Load New York Data 2017, warning=FALSE, message=FALSE}
+
+
+# This file contains all pedestrian crash cases
+pbtype_nyc_2017 <- fread("FARS/2017/PBType.csv", sep = ",", header= TRUE) %>%
+  filter(str_detect(ST_CASE, "^36")) 
+
+# Here we get number of new_york Pedestrian cases
+new_york_pedestrian_cases_2017 <- as.data.frame(pbtype_nyc_2017$ST_CASE)
+names(new_york_pedestrian_cases_2017) <- "ST_CASE"
+
+
+# Here we get number of accidents from Pedestrian cases and then filter by nyc city code
+accidents_nyc_2017 <- fread("FARS/2017/ACCIDENT.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% new_york_pedestrian_cases_2017$ST_CASE)
+
+# Filter out nyc City cases
+accidents_nyc_2017 %<>%  filter(CITY == '4170')
+
+#City of nyc Pedestrian Cases
+nyc_pedestrian_cases_2017 <- as.data.frame(accidents_nyc_2017$ST_CASE)
+names(nyc_pedestrian_cases_2017) <- "ST_CASE"
+
+accidents_nyc_2017$Date <- paste0(accidents_nyc_2017$YEAR,"-",accidents_nyc_2017$MONTH,"-", accidents_nyc_2017$DAY)
+
+# Add Date Column
+accidents_nyc_2017$Date <- as.Date(accidents_nyc_2017$Date)
+
+accidents_nyc_2017 %<>% select(92,3,1,2,4:91)
+
+# Fill in gaps in Time Series
+accidents_nyc_2017 %<>% fill_gaps(., date_col = 1, frequency = '1 day', groups = NULL, static_features = NULL)
+
+
+
+```
+
+
+```{r Add Data to 2017 Dataframe}
+
+
+# Here we get the number of people attached to each Pedestrian case
+person_nyc_2017 <- fread("FARS/2017/person.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2017$ST_CASE) 
+
+accidents_nyc_2017 <- left_join(accidents_nyc_2017, person_nyc_2017, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+  
+  
+
+distractions_nyc_2017 <- fread("FARS/2017/Distract.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2017$ST_CASE)
+
+accidents_nyc_2017 <- left_join(accidents_nyc_2017, distractions_nyc_2017, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+driver_impair_nyc_2017 <- fread("FARS/2017/DrImpair.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2017$ST_CASE)
+
+accidents_nyc_2017 <- left_join(accidents_nyc_2017, driver_impair_nyc_2017, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmcrash_nyc_2017 <- fread("FARS/2017/nmcrash.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2017$ST_CASE)
+
+accidents_nyc_2017 <- left_join(accidents_nyc_2017, nmcrash_nyc_2017, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmimpair_nyc_2017 <- fread("FARS/2017/NMImpair.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2017$ST_CASE)
+
+accidents_nyc_2017 <- left_join(accidents_nyc_2017, nmimpair_nyc_2017, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmprior_nyc_2017 <- fread("FARS/2017/NMPrior.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2017$ST_CASE)
+
+accidents_nyc_2017 <- left_join(accidents_nyc_2017, nmprior_nyc_2017, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+accidents_nyc_2017[is.na(accidents_nyc_2017)] <- 0
+
+
+```
+
+
+
+```{r View 2017 Column Names for Pruning}
+
+names_cleanup <- names(accidents_nyc_2017)
+
+names_cleanup
+
+
+```
+
+
+```{r Final 2017 Dataframe}
+
+accidents_nyc_2017 %<>% select("Date", "ST_CASE","DAY_original","MONTH_original",   "DAY_WEEK","HOUR_original","MINUTE_original","FUNC_SYS_original","ROUTE","TWAY_ID","TWAY_ID2",  "LATITUDE","LONGITUD","TYP_INT","PER_NO_original","MAKE","MAK_MOD","BODY_TYP","MOD_YEAR","AGE","SEX","DRINKING","DRUGS","DRUG_DET","RACE","LOCATION","DRIMPAIR") 
+
+accidents_nyc_2017 %<>% unique()
+#write.csv(accidents_nyc_2017, "nyc-2017.csv")
+
+
+```
+
+
+
+```{r Load New York Data 2018, warning=FALSE, message=FALSE}
+
+# This file contains all pedestrian crash cases
+pbtype_nyc_2018 <- fread("FARS/2018/PBType.csv", sep = ",", header= TRUE) %>%
+  filter(str_detect(ST_CASE, "^36")) 
+
+# Here we get number of new_york Pedestrian cases
+new_york_pedestrian_cases_2018 <- as.data.frame(pbtype_nyc_2018$ST_CASE)
+names(new_york_pedestrian_cases_2018) <- "ST_CASE"
+
+
+# Here we get number of accidents from Pedestrian cases and then filter by nyc city code
+accidents_nyc_2018 <- fread("FARS/2018/ACCIDENT.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% new_york_pedestrian_cases_2018$ST_CASE)
+
+# Filter out nyc City cases
+accidents_nyc_2018 %<>%  filter(CITY == '4170')
+
+#City of nyc Pedestrian Cases
+nyc_pedestrian_cases_2018 <- as.data.frame(accidents_nyc_2018$ST_CASE)
+names(nyc_pedestrian_cases_2018) <- "ST_CASE"
+
+
+# Add Date Column
+accidents_nyc_2018$Date <- paste0(accidents_nyc_2018$YEAR,"-",accidents_nyc_2018$MONTH,"-", accidents_nyc_2018$DAY)
+accidents_nyc_2018$Date <- as.Date(accidents_nyc_2018$Date)
+
+accidents_nyc_2018 %<>% select(92,2,3,1,4:91)
+
+# Fill in gaps in Time Series
+accidents_nyc_2018 %<>% fill_gaps(., date_col = 1, frequency = '1 day', groups = NULL, static_features = NULL)
+
+
+```
+
+
+
+```{r Add Data to 2018 Dataframe}
+
+# Here we get the number of people attached to each Pedestrian case
+person_nyc_2018 <- fread("FARS/2018/person.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2018$ST_CASE) 
+
+accidents_nyc_2018 <- left_join(accidents_nyc_2018, person_nyc_2018, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+  
+  
+
+distractions_nyc_2018 <- fread("FARS/2018/Distract.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2018$ST_CASE)
+
+accidents_nyc_2018 <- left_join(accidents_nyc_2018, distractions_nyc_2018, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+driver_impair_nyc_2018 <- fread("FARS/2018/DrImpair.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2018$ST_CASE)
+
+accidents_nyc_2018 <- left_join(accidents_nyc_2018, driver_impair_nyc_2018, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmcrash_nyc_2018 <- fread("FARS/2018/nmcrash.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2018$ST_CASE)
+
+accidents_nyc_2018 <- left_join(accidents_nyc_2018, nmcrash_nyc_2018, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmimpair_nyc_2018 <- fread("FARS/2018/NMImpair.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2018$ST_CASE)
+
+accidents_nyc_2018 <- left_join(accidents_nyc_2018, nmimpair_nyc_2018, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmprior_nyc_2018 <- fread("FARS/2018/NMPrior.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2018$ST_CASE)
+
+accidents_nyc_2018 <- left_join(accidents_nyc_2018, nmprior_nyc_2018, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+accidents_nyc_2018[is.na(accidents_nyc_2018)] <- 0
+
+
+
+```
+
+
+
+```{r View 2018 Column Names for Pruning}
+
+
+names_cleanup <- names(accidents_nyc_2018)
+
+names_cleanup
+
+```
+
+
+
+
+```{r Final 2018 Dataframe}
+
+accidents_nyc_2018 %<>% select("Date", "ST_CASE","DAY_original","MONTH_original",   "DAY_WEEK","HOUR_original","MINUTE_original","FUNC_SYS_original","ROUTE","TWAY_ID","TWAY_ID2",  "LATITUDE","LONGITUD","TYP_INT","PER_NO_original","MAKE","MAK_MOD","BODY_TYP","MOD_YEAR","AGE","SEX","DRINKING","DRUGS","DRUG_DET","RACE","LOCATION","DRIMPAIR") 
+
+accidents_nyc_2018 %<>% unique()
+
+
+```
+
+
+
+```{r Load New York Data 2019, warning=FALSE, message=FALSE}
+
+
+# This file contains all pedestrian crash cases
+pbtype_nyc_2019 <- fread("FARS/2019/PBType.csv", sep = ",", header= TRUE) %>%
+  filter(str_detect(ST_CASE, "^36")) 
+
+# Here we get number of new_york Pedestrian cases
+new_york_pedestrian_cases_2019 <- as.data.frame(pbtype_nyc_2019$ST_CASE)
+names(new_york_pedestrian_cases_2019) <- "ST_CASE"
+
+
+# Here we get number of accidents from Pedestrian cases and then filter by nyc city code
+accidents_nyc_2019 <- fread("FARS/2019/ACCIDENT.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% new_york_pedestrian_cases_2019$ST_CASE)
+
+# Filter out nyc City cases
+accidents_nyc_2019 %<>%  filter(CITY == '4170')
+
+#City of nyc Pedestrian Cases
+nyc_pedestrian_cases_2019 <- as.data.frame(accidents_nyc_2019$ST_CASE)
+names(nyc_pedestrian_cases_2019) <- "ST_CASE"
+
+
+# Add Date Column
+accidents_nyc_2019$Date <- paste0(accidents_nyc_2019$YEAR,"-", accidents_nyc_2019$MONTH,"-", accidents_nyc_2019$DAY)
+
+accidents_nyc_2019$Date <- as.Date(accidents_nyc_2019$Date)
+
+accidents_nyc_2019 %<>% select(92,3,1,2,4:91)
+
+# Fill in gaps in Time Series
+accidents_nyc_2019 %<>% fill_gaps(., date_col = 1, frequency = '1 day', groups = NULL, static_features = NULL)
+
+
+```
+
+
+
+```{r Add Data to 2019 Dataframe}
+
+
+# Here we get the number of people attached to each Pedestrian case
+person_nyc_2019 <- fread("FARS/2019/person.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE) 
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, person_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+  
+  
+distractions_nyc_2019 <- fread("FARS/2019/Distract.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE)
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, distractions_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+driver_impair_nyc_2019 <- fread("FARS/2019/DrImpair.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE)
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, driver_impair_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmcrash_nyc_2019 <- fread("FARS/2019/nmcrash.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE)
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, nmcrash_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmimpair_nyc_2019 <- fread("FARS/2019/NMImpair.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE)
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, nmimpair_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+nmprior_nyc_2019 <- fread("FARS/2019/NMPrior.csv", sep = ",", header= TRUE) %>%
+	filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE)
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, nmprior_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+race_nyc_2019 <- fread("FARS/2019/Race.csv", sep = ",", header= TRUE) %>%
+  filter(ST_CASE %in% nyc_pedestrian_cases_2019$ST_CASE) 
+
+accidents_nyc_2019 <- left_join(accidents_nyc_2019, race_nyc_2019, by=c("ST_CASE"),
+                                    suffix = c("_original", "_new"))
+
+
+```
+
+
+```{r View 2019 Column Names for Pruning}
+
+
+names_cleanup <- names(accidents_nyc_2019)
+
+names_cleanup
+
+```
+
+
+```{r Final 2019 Dataframe}
+
+names(accidents_nyc_2019)[118] <- "MAKE"
+names(accidents_nyc_2019)[120] <- "MAK_MOD"
+names(accidents_nyc_2019)[121] <- "BODY_TYP"
+names(accidents_nyc_2019)[123] <- "MOD_YEAR"
+names(accidents_nyc_2019)[137] <- "AGE"
+names(accidents_nyc_2019)[139] <- "SEX"
+names(accidents_nyc_2019)[159] <- "DRINKING"
+names(accidents_nyc_2019)[169] <- "DRUGS"
+names(accidents_nyc_2019)[171] <- "DRUG_DET"
+names(accidents_nyc_2019)[219] <- "DRIMPAIR"
+
+
+accidents_nyc_2019 %<>% select("Date", "ST_CASE","DAY_original","MONTH_original",   "DAY_WEEK","HOUR_original","MINUTE_original","FUNC_SYS_original","ROUTE","TWAY_ID","TWAY_ID2",  "LATITUDE","LONGITUD","TYP_INT","PER_NO_original","MAKE","MAK_MOD","BODY_TYP","MOD_YEAR","AGE","SEX","DRINKING","DRUGS","DRUG_DET","RACE","LOCATION","DRIMPAIR") 
+
+accidents_nyc_2019 %<>% unique()
+
+
+```
+
+
+
+```{r Merge Dataframes for XGBoost}
+
+
+# Merge all files and remove duplicate rows
+nyc_pedestrians <- rbind(accidents_nyc_2015, accidents_nyc_2016, accidents_nyc_2017, accidents_nyc_2018, accidents_nyc_2019) 
+
+
+```
+
+
+```{r Save Final Dataframe for Future Analysis}
+
+write.csv(nyc_pedestrians, "nyc-pedestrians.csv")
+
+```
+
