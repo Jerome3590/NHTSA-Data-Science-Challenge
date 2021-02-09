@@ -68,9 +68,9 @@ Driver Skill/Experience:
 
 Course of Action.
 
-1. Research Fatality Analysis Reporting System (FARS) dataset for variables that best align to the key variables that I believe represent this problem.
+1. Research Fatality Analysis Reporting System (FARS) dataset for variables that best align to the key variables that I believe represent this problem. Dowload the last five years of history to a local directory called 'FARS'. https://www.nhtsa.gov/content/nhtsa-ftp/251
 
-2. Once key variables from the FARS dataset has been collected, format the data into two dataframes for XGBoost. One dataframe for New York City, and one dataframe for Detroit.
+2. Once key variables from the FARS dataset have been collected, format the data into two dataframes for XGBoost. One dataframe for New York City, and one dataframe for Detroit.
 
 3. From these two dataframes use XGBoost Feature Importance capability to see which variables drive pedestrian crash counts in each respective city.
 
