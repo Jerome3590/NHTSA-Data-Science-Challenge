@@ -144,7 +144,7 @@ xgb.ggplot.importance(importance_matrix = feature.importance.trains, top_n = 5) 
   labs(title = "Top Features") +
   theme_minimal()
 
-ggsave('trains-feature-importance.png')
+ggsave('images/trains-feature-importance.png')
 
 
 ```
@@ -189,7 +189,7 @@ is.num <- sapply(final_amtrak_data, is.numeric)
 final_amtrak_data[is.num] <- lapply(final_amtrak_data[is.num], round, 1)
 
 
-#write.csv(final_amtrak_data, "Final_Amtrak_df.csv")
+write.csv(final_amtrak_data, "data/Final_Amtrak_df.csv")
 
 head(final_amtrak_data, 5)
 
