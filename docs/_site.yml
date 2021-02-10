@@ -7,7 +7,7 @@ navbar:
      href: index.html
    - text: "Problem 1 - Data Clean"
      href:  data-clean_part1.html
-   - text: "Problem 1: XGBoost SubModel for Imputing Missing Values"
+   - text: "Problem 1: XGBoost SubModel for Missing Values"
      href: Impute-Values_XGBoost-SubModel.html
    - text: "Problem 2: Step 1 - Build Detroit Dataset"
      href: data-wrangle_part2_Detroit.html
