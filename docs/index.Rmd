@@ -1,6 +1,8 @@
 ---
 title: "NHTSA Data Science Challenge"
-output: html_document
+output: 
+  html_document: 
+    theme: cosmo
 ---
 
 <style type="text/css">
