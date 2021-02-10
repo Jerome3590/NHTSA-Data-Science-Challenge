@@ -8,6 +8,7 @@ output: html_document
   display: none;
 }
 
+
 #getting-started img {
   margin-right: 10px;
 }
@@ -16,6 +17,10 @@ output: html_document
 
 <div class="row" style="padding-top: 30px;">
 <div class="col-sm-6">
+
+
+
+
 
 # **NHTSA Data Science Challenge**
 

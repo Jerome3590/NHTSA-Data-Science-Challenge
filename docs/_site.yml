@@ -3,20 +3,20 @@ name: "NHTSA Data Science Challenge"
 navbar:
   title: "NHTSA Data Science Challenge"
   left:
-    - text: "Home"
+   - text: "Home"
       href: index.html
-    - text: "Problem 1 - Data Clean"
+   - text: "Problem 1 - Data Clean"
       href:  data-clean_part1.html
-    - text: "Problem 1: XGBoost SubModel for Imputing Missing Values"
+   - text: "Problem 1: XGBoost SubModel for Imputing Missing Values"
       href: Impute-Values_XGBoost-SubModel.html
-    - text: "Problem 2: Step 1 - Build Detroit Dataset"
+   - text: "Problem 2: Step 1 - Build Detroit Dataset"
       href: data-wrangle_part2_Detroit.html
-    - text: "Problem 2: Step 1 - Build NYC Dataset"
+   - text: "Problem 2: Step 1 - Build NYC Dataset"
       href: data-wrangle_part2_NYC.html
-    - text: "Problem 2: Step 2 - XGBoost Detroit"
+   - text: "Problem 2: Step 2 - XGBoost Detroit"
       href: XGBoost-Detroit-Model_part3.html
-    - text: "Problem 2: Step 2 - XGBoost NYC"
+   - text: "Problem 2: Step 2 - XGBoost NYC"
       href: XGBoost-NYC-Model_part3.html
-    - text: "Dynamical Systems Modeling with rEDM (in progress)"
+   - text: "Dynamical Systems Modeling with rEDM (in progress)"
       href: Dynamical-Systems-Modeling.html
 #output_dir: "docs"
