@@ -3,9 +3,9 @@ title: "Data Science Challenge Part 2 - NYC"
 author: "Jerome Dixon"
 date: "1/28/2021"
 output:
-  word_document: default
-  pdf_document: default
   html_document: default
+  pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -686,7 +686,7 @@ nyc_pedestrians <- rbind(accidents_nyc_2015, accidents_nyc_2016, accidents_nyc_2
 
 ```{r Save Final Dataframe for Future Analysis}
 
-write.csv(nyc_pedestrians, "nyc-pedestrians.csv")
+write.csv(nyc_pedestrians, "data/nyc-pedestrians.csv")
 
 ```
 

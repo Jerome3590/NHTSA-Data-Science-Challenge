@@ -33,7 +33,7 @@ library(xtable)
 
 ```{r Read in Data with Default Columns as Factor}
 
-detroit_pedestrians <- read_csv("detroit-pedestrians.csv", col_types = cols(.default = col_factor()))
+detroit_pedestrians <- read_csv("data/detroit-pedestrians.csv", col_types = cols(.default = col_factor()))
 
 detroit_pedestrians %<>% select(!c("X1","ST_CASE"))
 
@@ -144,7 +144,7 @@ xgb.ggplot.importance(importance_matrix = feature.importance.detroit, top_n = 20
   theme_minimal()
 
 
-ggsave('detroit-feature-importance.png')
+ggsave('images/detroit-feature-importance.png')
 
 ```
 

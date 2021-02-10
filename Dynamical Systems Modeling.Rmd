@@ -15,12 +15,9 @@ library(rEDM)
 ```
 
 
+```{r Data Prep Locomotives}
 
-
-```{r Embedding Dimension Locomotives}
-
-
-locomotives <- read_csv("locomotives.csv")
+locomotives <- read_csv("data/locomotives.csv")
 
 locomotives_ts <- locomotives %>% select(5,3,4)
 
@@ -40,21 +37,22 @@ locomotives <- locomotives_ts[complete.cases(locomotives_ts), ]
 locomotives$Percent_Available <- scale(locomotives$Percent_Available)
 locomotives$Average_Age_in_Years <- scale(locomotives$Average_Age_in_Years)
 
+```
+
+
+```{r Embedding Dimension Locomotives}
 
 rho_E_loco <- EmbedDimension(dataFrame = locomotives, columns = "Percent_Available", target = "Percent_Available", lib = "1 27", pred = "1 27", showPlot = TRUE)
 
 rho_E_loco
 
-
 ```
 
 
+```{r Data Prep Passenger Trains}
 
 
-```{r Embedding Dimension Passenger Trains}
-
-
-passenger_trains <- read_csv("passenger-trains.csv")
+passenger_trains <- read_csv("data/passenger-trains.csv")
 
 passenger_trains_ts <- passenger_trains %>% select(5,3,4)
 
@@ -75,26 +73,15 @@ passenger_trains$Percent_Available <- scale(passenger_trains$Percent_Available)
 passenger_trains$Average_Age_in_Years <- scale(passenger_trains$Average_Age_in_Years)
 
 
+```
+
+
+```{r Embedding Dimension Passenger Trains}
+
+
 rho_E_pass <- EmbedDimension(dataFrame = passenger_trains, columns = "Percent_Available", target = "Percent_Available", lib = "1 27", pred = "1 27", showPlot = TRUE)
 
 rho_E_pass
 
-```
-
-```{r}
-
-
-
-rho_E_pass <- EmbedDimension(dataFrame = passenger_trains, columns = "Percent_Available", target = "Percent_Available", lib = "1 27", pred = "1 27", showPlot = TRUE)
-
-rho_E_pass
-
-
 
 ```
-
-
-```{r}
-```
-
-

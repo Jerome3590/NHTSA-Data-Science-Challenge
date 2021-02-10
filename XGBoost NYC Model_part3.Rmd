@@ -33,7 +33,7 @@ library(xtable)
 
 ```{r Read in Data with Default Columns as Factor}
 
-nyc_pedestrians <- read_csv("nyc-pedestrians.csv", col_types = cols(.default = col_factor()))
+nyc_pedestrians <- read_csv("data/nyc-pedestrians.csv", col_types = cols(.default = col_factor()))
 
 nyc_pedestrians %<>% select(!c("X1","ST_CASE"))
 
@@ -144,19 +144,10 @@ xgb.ggplot.importance(importance_matrix = feature.importance.nyc, top_n = 20) +
   labs(title = "Top Features For New York City Pedestrian Traffic Accidents") +
   theme_minimal()
 
-ggsave('nyc-feature-importance.png')
+ggsave('images/nyc-feature-importance.png')
 
 
 ```
 
-
-```{r}
-
-ggsave('nyc-feature-importance.png')
-
-
-
-
-```
 
 
