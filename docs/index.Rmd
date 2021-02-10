@@ -25,7 +25,7 @@ output: html_document
 # **NHTSA Data Science Challenge**
 
 To solve this data challenge we use XGBoost to create a submodel and impute missing value.
-We then use XGBoost again to identify key features for each city that drive pedestrian crash data from the last five years of NHTSA datasets.
+We then use XGBoost again to identify key features for each city that drives pedestrian crash data from the last five years of NHTSA data.
 
 ## Problem 1: 
 
