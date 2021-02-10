@@ -6,3 +6,4 @@ output:
     theme: cosmo
     highlight: textmate
     css: styles.css
+    lib_dir: site_libs
