@@ -144,7 +144,7 @@ xgb.ggplot.importance(importance_matrix = feature.importance.detroit, top_n = 20
   theme_minimal()
 
 
-ggsave('images/detroit-feature-importance.png')
+#ggsave('images/detroit-feature-importance.png')
 
 ```
 

@@ -1,3 +1,4 @@
+
 name: "NHTSA Data Science Challenge"
 navbar:
   title: "NHTSA Data Science Challenge"
@@ -16,8 +17,6 @@ navbar:
       href: XGBoost-Detroit-Model_part3.html
     - text: "Problem 2: Step 2 - XGBoost NYC"
       href: XGBoost-NYC-Model_part3.html
-    - text: "Problem 2: Step 3 - Compare City XGBoost Feature Importance"
-      href: Results.html
     - text: "Dynamical Systems Modeling with rEDM (in progress)"
       href: Dynamical-Systems-Modeling.html
-output_dir: "docs"
+#output_dir: "docs"

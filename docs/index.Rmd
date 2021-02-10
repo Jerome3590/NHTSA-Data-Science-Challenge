@@ -1,5 +1,5 @@
 ---
-title: "MyLabJournal"
+title: "NHTSA Data Science Challenge"
 output: html_document
 ---
 
@@ -17,27 +17,44 @@ output: html_document
 <div class="row" style="padding-top: 30px;">
 <div class="col-sm-6">
 
-# **My Lab Journal**
+# **NHTSA Data Science Challenge**
 
-This is a template example for lab journaling. Students in Matt Crump's Human Cognition and Performance Lab will use this template to learn R, and other things. Students can replace this text with more fun things. People not in my lab can use this too.
+To solve this data challenge we use XGBoost to create a submodel and impute missing value.
+We then use XGBoost again to identify key features for each city that drive pedestrian crash data from the last five years of NHTSA datasets.
 
-## How to use
+## Problem 1: 
 
-1. fork the repo for this website and follow instructions on read me to get set up. [https://github.com/CrumpLab/LabJournalWebsite](https://github.com/CrumpLab/LabJournalWebsite)
+Data Wrangling:
 
-2. Blog/journal what you are doing in R, by editing the Journal.Rmd. See the [Journal page](https://crumplab.github.io/LabJournalWebsite/Journal.html) for an example of what to do to get started learning R.
+Explain which methods you would use to clean this sample dataset, and how you would go about applying them:
 
-3. See the [links page](https://crumplab.github.io/LabJournalWebsite/Links.html) for lots of helpful links on learning R.
+DOT Age and Availability of Amtrak and Locomotive Car Fleets -https://www.bts.gov/sites/bts.dot.gov/files/table_01_33_102020.xlsx
+(Webpage: https://www.bts.gov/content/age-and-availability-amtrak-locomotive-and-car-fleets)
 
-4. Change everything to make it your own.
+Data Joining:
+Using any software (commercial and open source) you like, programmatically join the following two untidy sample datasets:
+DOT Licensed drivers--Ratio of licensed drivers to population -https://www.fhwa.dot.gov/policyinformation/statistics/2014/xls/dl1c.xls.
+DOT Licensed Drivers by State, Sex, and Age Group - https://www.fhwa.dot.gov/policyinformation/statistics/2014/xls/dl22.xls.
+
+Provide an inline image or table showing between 5-10 sample rows of your joined dataset, along the source code used to complete the above task in plain text format.
+
+
+## Problem 2
+
+A senior policy official asks you to analyze why New York City and Detroit have different pedestrian crash outcomes over the last 5 years. Take Fatality Analysis Reporting System data from nhtsa.gov and compare and contrast Detroit with the New York City metropolitan area. What are the things you might analyze to understand what is different about fatal crash patterns in these cities? Explore the dataset and develop a hypothesis about why the two areas are different. You can suggest other data you might want to bring to the table in order to support your hypothesis.
+
+Potential Resources
+• Data Download: https://www.nhtsa.gov/es/node/97996/251 (you can download CSV or SAS files for each year)
+• Explore data on your own: https://cdan.dot.gov/query
+• Data User Guide (Analytical User's Manual): https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/812827
 
 
 </div>
 <div class="col-sm-6">
 
-### [Crump Lab: Human Cognition and Performance](https://crumplab.github.io)
+### [GitHub Repo:](https://github.com/Jerome3590/NHTSA-Data-Science-Challenge)
 
-<a href = "https://crumplab.github.io">
+<a href = "https://github.com/Jerome3590/NHTSA-Data-Science-Challenge">
 ![](images/logo.png)
 </a>
 </div>

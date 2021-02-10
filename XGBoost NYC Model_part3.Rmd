@@ -144,7 +144,7 @@ xgb.ggplot.importance(importance_matrix = feature.importance.nyc, top_n = 20) +
   labs(title = "Top Features For New York City Pedestrian Traffic Accidents") +
   theme_minimal()
 
-ggsave('images/nyc-feature-importance.png')
+#ggsave('images/nyc-feature-importance.png')
 
 
 ```
