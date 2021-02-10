@@ -1,4 +1,5 @@
 name: "NHTSA Data Science Challenge"
+output_dir: .
 navbar:
   title: "NHTSA Data Science Challenge"
   left:
